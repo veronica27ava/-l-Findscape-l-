@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Findscape - Trading Card Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo-section">
+                <img id="siteLogo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234f46e5'/%3E%3Ctext x='50' y='60' font-size='50' fill='white' text-anchor='middle' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E" alt="Logo" class="navbar-logo">
+                <span class="site-name">FINDSCAPE</span>
+            </div>
+            <div class="nav-menu">
+                <a href="#" onclick="navigateTo('home')">Home</a>
+                <a href="#" onclick="navigateTo('marketplace')">Marketplace</a>
+                <a href="#" onclick="navigateTo('analytics')">Analytics</a>
+                <div class="user-menu">
+                    <button id="userBtn" class="user-btn" onclick="toggleUserMenu()">
+                        <i class="fas fa-user-circle"></i> <span id="userDisplay">Guest</span>
+                    </button>
+                    <div id="userDropdown" class="user-dropdown">
+                        <a href="#" onclick="navigateTo('profile')"><i class="fas fa-user"></i> My Profile</a>
+                        <a href="#" onclick="navigateTo('my-listings')"><i class="fas fa-th"></i> My Listings</a>
+                        <a href="#" onclick="navigateTo('messages')"><i class="fas fa-envelope"></i> Messages</a>
+                        <a href="#" onclick="navigateTo('admin-dashboard')" id="adminLink" style="display:none;"><i class="fas fa-cog"></i> Admin Panel</a>
+                        <hr>
+                        <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Areas -->
+    <main id="main-content">
+        <!-- Home Page -->
+        <section id="home" class="page hidden">
+            <div class="hero">
+                <div class="hero-content">
+                    <h1>Welcome to Findscape</h1>
+                    <p>The Premier Trading Card & Collectibles Marketplace</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary" onclick="navigateTo('marketplace')">Browse Products</button>
+                        <button class="btn btn-secondary" onclick="navigateTo('register')">Join as Member</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Marketplace Page -->
+        <section id="marketplace" class="page hidden">
+            <div class="container">
+                <h1>Marketplace</h1>
+                <div class="marketplace-controls">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Search products..." onkeyup="filterProducts()">
+                        <button onclick="filterProducts()"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div class="filters">
+                        <select id="categoryFilter" onchange="filterProducts()">
+                            <option value="">All Categories</option>
+                            <option value="Pokemon">Pokémon</option>
+                            <option value="MTG">Magic: The Gathering</option>
+                            <option value="Beyblade">Beyblade</option>
+                            <option value="Firstbound">Firstbound</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <select id="sortFilter" onchange="filterProducts()">
+                            <option value="newest">Newest First</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="productsGrid" class="products-grid">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Product Details Page -->
+        <section id="product-detail" class="page hidden">
+            <div class="container">
+                <button class="btn btn-back" onclick="navigateTo('marketplace')"><i class="fas fa-arrow-left"></i> Back</button>
+                <div id="productDetailContent"></div>
+            </div>
+        </section>
+
+        <!-- Seller Profile Page -->
+        <section id="seller-profile" class="page hidden">
+            <div class="container">
+                <button class="btn btn-back" onclick="navigateTo('marketplace')"><i class="fas fa-arrow-left"></i> Back</button>
+                <div id="sellerProfileContent"></div>
+            </div>
+        </section>
+
+        <!-- My Profile Page -->
+        <section id="profile" class="page hidden">
+            <div class="container">
+                <h1>My Profile</h1>
+                <div id="profileContent"></div>
+            </div>
+        </section>
+
+        <!-- My Listings Page -->
+        <section id="my-listings" class="page hidden">
+            <div class="container">
+                <h1>My Listings</h1>
+                <button class="btn btn-primary" onclick="navigateTo('create-listing')">Create New Listing</button>
+                <div id="myListingsContent"></div>
+            </div>
+        </section>
+
+        <!-- Create/Edit Listing Page -->
+        <section id="create-listing" class="page hidden">
+            <div class="container">
+                <h1 id="listingFormTitle">Create New Listing</h1>
+                <form id="listingForm" class="listing-form" onsubmit="saveListing(event)">
+                    <div class="form-group">
+                        <label>Product Name *</label>
+                        <input type="text" id="productName" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price (₱) *</label>
+                            <input type="number" id="productPrice" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity *</label>
+                            <input type="number" id="productQuantity" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Condition *</label>
+                            <select id="productCondition" required>
+                                <option value="">Select Condition</option>
+                                <option value="Mint">Mint</option>
+                                <option value="Near Mint">Near Mint</option>
+                                <option value="Lightly Played">Lightly Played</option>
+                                <option value="Moderately Played">Moderately Played</option>
+                                <option value="Heavily Played">Heavily Played</option>
+                                <option value="Damaged">Damaged</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category *</label>
+                            <input type="text" id="productCategory" placeholder="e.g., Pokemon, MTG" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="productDescription" rows="4" placeholder="Detailed product description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Product Images</label>
+                        <input type="file" id="productImages" multiple accept="image/*" onchange="previewImages(event)">
+                        <div id="imagePreview" class="image-preview"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Listing</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Messages Page -->
+        <section id="messages" class="page hidden">
+            <div class="container">
+                <h1>Messages</h1>
+                <div class="messages-container">
+                    <div class="messages-list" id="messagesList"></div>
+                    <div class="message-thread" id="messageThread"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analytics Page -->
+        <section id="analytics" class="page hidden">
+            <div class="container">
+                <h1>Sales Analytics</h1>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h3>Total Products Listed</h3>
+                        <p id="totalListed" class="analytics-number">0</p>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Total Products Sold</h3>
+                        <p id="totalSold" class="analytics-number">0</p>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Recently Sold</h3>
+                        <div id="recentlySold"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Registration Page -->
+        <section id="register" class="page hidden">
+            <div class="container">
+                <div class="register-wrapper">
+                    <h1>Register as Member</h1>
+                    <div class="rules-section">
+                        <h3>Findscape Community Rules</h3>
+                        <div id="rulesContent" class="rules-content">
+                            <p>Loading rules...</p>
+                        </div>
+                        <label><input type="checkbox" id="acceptRules" required> I accept the community rules</label>
+                    </div>
+                    <form id="registerForm" class="register-form" onsubmit="registerMember(event)">
+                        <div class="form-group">
+                            <label>Full Legal Name (Government Name) *</label>
+                            <input type="text" id="fullName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Address *</label>
+                            <input type="email" id="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Username *</label>
+                            <input type="text" id="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password *</label>
+                            <input type="password" id="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password *</label>
+                            <input type="password" id="confirmPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Registration</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Login Page -->
+        <section id="login" class="page hidden">
+            <div class="container">
+                <div class="login-wrapper">
+                    <h1>Member Login</h1>
+                    <form id="loginForm" class="login-form" onsubmit="loginMember(event)">
+                        <div class="form-group">
+                            <label>Email or Username *</label>
+                            <input type="text" id="loginUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password *</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    <p>Don't have an account? <a href="#" onclick="navigateTo('register')">Register here</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Dashboard -->
+        <section id="admin-dashboard" class="page hidden">
+            <div class="container">
+                <h1>Admin Dashboard</h1>
+                <div class="admin-tabs">
+                    <button class="admin-tab-btn active" onclick="switchAdminTab('members')">Member Management</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('products')">Product Moderation</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('access-codes')">Access Codes</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('settings')">Settings</button>
+                </div>
+                <div class="admin-content">
+                    <div id="membersTab" class="admin-tab-content">
+                        <h3>Pending Member Requests</h3>
+                        <div id="pendingMembers"></div>
+                        <h3>Active Members</h3>
+                        <div id="activeMembers"></div>
+                    </div>
+                    <div id="productsTab" class="admin-tab-content hidden">
+                        <h3>All Products</h3>
+                        <div id="allProducts"></div>
+                    </div>
+                    <div id="accessCodesTab" class="admin-tab-content hidden">
+                        <h3>Access Codes</h3>
+                        <button class="btn btn-primary" onclick="generateAccessCode()">Generate New Code</button>
+                        <div id="accessCodesList"></div>
+                    </div>
+                    <div id="settingsTab" class="admin-tab-content hidden">
+                        <h3>Website Settings</h3>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>Logo Upload</label>
+                                <input type="file" id="logoUpload" accept="image/*" onchange="uploadLogo(event)">
+                                <button class="btn btn-secondary" onclick="resetLogo()">Reset to Default</button>
+                            </div>
+                            <div class="form-group">
+                                <label>Community Rules</label>
+                                <textarea id="rulesEdit" rows="6"></textarea>
+                                <button class="btn btn-primary" onclick="saveRules()">Save Rules</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for image viewing -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeImageModal()">&times;</span>
+            <img id="modalImage" src="" alt="Product Image">
+            <div class="image-controls">
+                <button onclick="zoomImage(-0.1)"><i class="fas fa-minus"></i></button>
+                <button onclick="resetZoom()">Reset</button>
+                <button onclick="zoomImage(0.1)"><i class="fas fa-plus"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
