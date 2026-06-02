@@ -12,7 +12,7 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo-section">
-                <img id="siteLogo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234f46e5'/%3E%3Ctext x='50' y='60' font-size='50' fill='white' text-anchor='middle' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E" alt="Logo" class="navbar-logo">
+                <img id="siteLogo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234f46e5'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' fill='white' font-size='40' font-weight='bold'%3EFS%3C/text%3E%3C/svg%3E" alt="Findscape Logo" class="navbar-logo">
                 <span class="site-name">FINDSCAPE</span>
             </div>
             <div class="nav-menu">
@@ -26,6 +26,7 @@
                     <div id="userDropdown" class="user-dropdown">
                         <a href="#" onclick="navigateTo('profile')"><i class="fas fa-user"></i> My Profile</a>
                         <a href="#" onclick="navigateTo('my-listings')"><i class="fas fa-th"></i> My Listings</a>
+                        <a href="#" onclick="navigateTo('seller-dashboard')"><i class="fas fa-chart-line"></i> Seller Dashboard</a>
                         <a href="#" onclick="navigateTo('messages')"><i class="fas fa-envelope"></i> Messages</a>
                         <a href="#" onclick="navigateTo('admin-dashboard')" id="adminLink" style="display:none;"><i class="fas fa-cog"></i> Admin Panel</a>
                         <hr>
@@ -117,6 +118,33 @@
             </div>
         </section>
 
+        <!-- Seller Dashboard Page -->
+        <section id="seller-dashboard" class="page hidden">
+            <div class="container">
+                <h1>Seller Dashboard</h1>
+                <div class="dashboard-tabs">
+                    <button class="dashboard-tab-btn active" onclick="switchDashboardTab('sales')">Sales & Income</button>
+                    <button class="dashboard-tab-btn" onclick="switchDashboardTab('inventory')">Inventory Tracking</button>
+                    <button class="dashboard-tab-btn" onclick="switchDashboardTab('purchases')">Purchase History</button>
+                </div>
+                <div class="dashboard-content">
+                    <div id="salesTab" class="dashboard-tab-content">
+                        <h2>Sales & Income Overview</h2>
+                        <div id="salesOverview" class="analytics-grid"></div>
+                        <div id="weeklySalesContainer"></div>
+                    </div>
+                    <div id="inventoryTab" class="dashboard-tab-content hidden">
+                        <h2>Product Inventory & Cost Tracking</h2>
+                        <div id="inventoryContent"></div>
+                    </div>
+                    <div id="purchasesTab" class="dashboard-tab-content hidden">
+                        <h2>Product Purchase History</h2>
+                        <div id="purchasesContent"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Create/Edit Listing Page -->
         <section id="create-listing" class="page hidden">
             <div class="container">
@@ -128,15 +156,19 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Price (₱) *</label>
-                            <input type="number" id="productPrice" step="0.01" required>
+                            <label>Buying Cost (₱) *</label>
+                            <input type="number" id="productCost" step="0.01" required placeholder="How much did you pay for this?">
                         </div>
+                        <div class="form-group">
+                            <label>Selling Price (₱) *</label>
+                            <input type="number" id="productPrice" step="0.01" required placeholder="What price are you selling at?">
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label>Quantity *</label>
                             <input type="number" id="productQuantity" min="1" required>
                         </div>
-                    </div>
-                    <div class="form-row">
                         <div class="form-group">
                             <label>Condition *</label>
                             <select id="productCondition" required>
@@ -149,6 +181,8 @@
                                 <option value="Damaged">Damaged</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label>Category *</label>
                             <input type="text" id="productCategory" placeholder="e.g., Pokemon, MTG" required>
