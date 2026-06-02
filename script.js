@@ -3,6 +3,7 @@ let users = JSON.parse(localStorage.getItem('users')) || [];
 let products = JSON.parse(localStorage.getItem('products')) || [];
 let messages = JSON.parse(localStorage.getItem('messages')) || [];
 let accessCodes = JSON.parse(localStorage.getItem('accessCodes')) || [];
+let salesHistory = JSON.parse(localStorage.getItem('salesHistory')) || [];
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 let rules = localStorage.getItem('rules') || 'Welcome to Findscape! Please follow community guidelines when buying and selling collectibles.';
 
@@ -10,8 +11,57 @@ let rules = localStorage.getItem('rules') || 'Welcome to Findscape! Please follo
 window.addEventListener('load', () => {
     loadRules();
     updateUserDisplay();
+    archiveOldSoldProducts();
     navigateTo('home');
 });
+
+// Archive sold products after 30 days
+function archiveOldSoldProducts() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    products = products.filter(product => {
+        if (product.status === 'sold' && product.dateSold) {
+            const soldDate = new Date(product.dateSold);
+            if (soldDate < thirtyDaysAgo) {
+                // Archive to sales history
+                archiveProductToHistory(product);
+                return false; // Remove from active products
+            }
+        }
+        return true;
+    });
+
+    localStorage.setItem('products', JSON.stringify(products));
+}
+
+// Archive product to sales history
+function archiveProductToHistory(product) {
+    const seller = users.find(u => u.id === product.sellerId);
+    if (!seller) return;
+
+    // Initialize sales history for seller if not exists
+    if (!seller.salesHistory) {
+        seller.salesHistory = [];
+    }
+
+    // Add product to seller's sales history
+    seller.salesHistory.push({
+        ...product,
+        archivedAt: new Date().toISOString()
+    });
+
+    // Update user in the users array
+    users = users.map(u => u.id === seller.id ? seller : u);
+    localStorage.setItem('users', JSON.stringify(users));
+
+    // Also maintain global sales history
+    salesHistory.push({
+        ...product,
+        archivedAt: new Date().toISOString()
+    });
+    localStorage.setItem('salesHistory', JSON.stringify(salesHistory));
+}
 
 // Navigation
 function navigateTo(page) {
@@ -88,7 +138,9 @@ function registerMember(e) {
             bio: '',
             profilePicture: null,
             shopName: ''
-        }
+        },
+        salesHistory: [],
+        weeklySalesData: {}
     };
 
     users.push(newUser);
@@ -338,7 +390,7 @@ function viewSellerProfile(sellerId) {
                         <div>Products Listed</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">${products.filter(p => p.sellerId === sellerId && p.status === 'sold').length}</div>
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">${seller.salesHistory ? seller.salesHistory.length : 0}</div>
                         <div>Products Sold</div>
                     </div>
                     <div style="text-align: center;">
@@ -381,7 +433,8 @@ function loadProfile() {
 
     const profileContent = document.getElementById('profileContent');
     const userProducts = products.filter(p => p.sellerId === currentUser.id);
-    const soldProducts = userProducts.filter(p => p.status === 'sold');
+    const soldProducts = currentUser.salesHistory || [];
+    const totalSalesAmount = soldProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
 
     profileContent.innerHTML = `
         <div style="background: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
@@ -396,7 +449,7 @@ function loadProfile() {
                     <button class="btn btn-primary" onclick="editProfile()" style="margin-top: 1rem;">Edit Profile</button>
                 </div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2rem;">
                 <div style="text-align: center;">
                     <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">${userProducts.length}</div>
                     <div>Products Listed</div>
@@ -408,6 +461,10 @@ function loadProfile() {
                 <div style="text-align: center;">
                     <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">${userProducts.filter(p => p.status !== 'sold').length}</div>
                     <div>Available</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">₱${totalSalesAmount.toFixed(2)}</div>
+                    <div>Total Sales</div>
                 </div>
             </div>
         </div>
@@ -511,7 +568,7 @@ function saveListing(e) {
             condition,
             category,
             description,
-            images: images.length > 0 ? images : ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23e0e0e0%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2220%22%3ENo Image%3C/text%3E%3C/svg%3E'],
+            images: images.length > 0 ? images : ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23e0e0e0%22 width=%22100%22 height=%22100%22%3E%3C/rect%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3ENo Image%3C/text%3E%3C/svg%3E'],
             status: 'available',
             datePosted: new Date().toISOString(),
             dateSold: null
@@ -571,9 +628,62 @@ function markSold(productId) {
         product.status = 'sold';
         product.dateSold = new Date().toISOString();
         localStorage.setItem('products', JSON.stringify(products));
+        
+        // Update weekly sales data
+        updateWeeklySalesData(product);
+        
         loadMyListings();
         alert('Listing marked as sold!');
     }
+}
+
+// Update weekly sales data for seller
+function updateWeeklySalesData(product) {
+    let seller = users.find(u => u.id === product.sellerId);
+    if (!seller) return;
+
+    if (!seller.weeklySalesData) {
+        seller.weeklySalesData = {};
+    }
+
+    const date = new Date(product.dateSold);
+    const weekStart = getWeekStartDate(date);
+    const weekKey = weekStart.toISOString().split('T')[0];
+
+    if (!seller.weeklySalesData[weekKey]) {
+        seller.weeklySalesData[weekKey] = {
+            weekStart: weekKey,
+            totalItems: 0,
+            totalRevenue: 0,
+            products: []
+        };
+    }
+
+    seller.weeklySalesData[weekKey].totalItems += product.quantity;
+    seller.weeklySalesData[weekKey].totalRevenue += product.price * product.quantity;
+    seller.weeklySalesData[weekKey].products.push({
+        name: product.name,
+        price: product.price,
+        quantity: product.quantity,
+        dateSold: product.dateSold
+    });
+
+    users = users.map(u => u.id === seller.id ? seller : u);
+    localStorage.setItem('users', JSON.stringify(users));
+
+    // Update currentUser if it's the same user
+    if (currentUser && currentUser.id === seller.id) {
+        currentUser = seller;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    }
+}
+
+// Get the start of the week (Monday)
+function getWeekStartDate(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
 }
 
 // Messages
@@ -643,7 +753,7 @@ function viewConversation(userId) {
             <div style="max-height: 400px; overflow-y: auto; margin: 1rem 0; border: 1px solid var(--border); padding: 1rem; border-radius: 5px;">
                 ${userMessages.map(m => `
                     <div style="margin-bottom: 1rem; ${m.senderId === currentUser.id ? 'text-align: right;' : ''}">
-                        <div style="display: inline-block; background: ${m.senderId === currentUser.id ? 'var(--primary)' : 'var(--light)'}; color: ${m.senderId === currentUser.id ? 'white' : 'var(--text)'}; padding: 0.75rem 1rem; border-radius: 5px; max-width: 300px;">
+                        <div style="display: inline-block; background: ${m.senderId === currentUser.id ? 'var(--primary)' : 'var(--light)'}; color: ${m.senderId === currentUser.id ? 'white' : 'var(--text)'}; padding: 0.75rem 1rem; border-radius: 8px; max-width: 70%;">
                             ${m.content}
                         </div>
                         <div style="font-size: 0.8rem; color: var(--text); margin-top: 0.25rem;">${new Date(m.timestamp).toLocaleTimeString()}</div>
@@ -681,10 +791,9 @@ function sendDirectMessage(recipientId) {
 // Analytics
 function loadAnalytics() {
     const totalListed = products.filter(p => p.status === 'available').length;
-    const totalSold = products.filter(p => p.status === 'sold').length;
-    const recentlySold = products.filter(p => p.status === 'sold')
-        .sort((a, b) => new Date(b.dateSold) - new Date(a.dateSold))
-        .slice(0, 5);
+    const totalSold = currentUser ? (currentUser.salesHistory ? currentUser.salesHistory.length : 0) : 0;
+    const recentlySold = currentUser && currentUser.salesHistory ? 
+        currentUser.salesHistory.sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)).slice(0, 5) : [];
 
     document.getElementById('totalListed').textContent = totalListed;
     document.getElementById('totalSold').textContent = totalSold;
@@ -697,6 +806,58 @@ function loadAnalytics() {
             <p style="font-size: 0.8rem; color: var(--text);">${new Date(p.dateSold).toLocaleDateString()}</p>
         </div>
     `).join('');
+
+    // Display weekly sales analytics
+    displayWeeklySalesAnalytics();
+}
+
+// Display weekly sales analytics
+function displayWeeklySalesAnalytics() {
+    if (!currentUser || !currentUser.weeklySalesData) {
+        document.getElementById('weeklySalesContainer').innerHTML = '<p>No sales data yet</p>';
+        return;
+    }
+
+    const weeks = Object.values(currentUser.weeklySalesData).sort((a, b) => 
+        new Date(b.weekStart) - new Date(a.weekStart)
+    );
+
+    const analyticsHtml = `
+        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border);">
+            <h2 style="margin-bottom: 1.5rem;">Weekly Sales Analysis</h2>
+            <div style="display: grid; gap: 1.5rem;">
+                ${weeks.map(week => `
+                    <div style="background: white; padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--text); text-transform: uppercase; margin-bottom: 0.5rem;">Week of ${new Date(week.weekStart).toLocaleDateString()}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--text); text-transform: uppercase; margin-bottom: 0.5rem;">Items Sold</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary);">${week.totalItems}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.85rem; color: var(--text); text-transform: uppercase; margin-bottom: 0.5rem;">Revenue</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--success);">₱${week.totalRevenue.toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div style="background: var(--light); padding: 1rem; border-radius: 5px;">
+                            <h4 style="margin-bottom: 0.5rem;">Products Sold:</h4>
+                            <ul style="list-style: none; padding: 0;">
+                                ${week.products.map(p => `
+                                    <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem;">
+                                        <strong>${p.name}</strong> - ${p.quantity} unit(s) × ₱${p.price.toFixed(2)} = ₱${(p.quantity * p.price).toFixed(2)}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('weeklySalesContainer').innerHTML = analyticsHtml;
 }
 
 // Admin Functions
@@ -738,6 +899,7 @@ function loadAdminMembers() {
             <h4>${u.username}</h4>
             <p><strong>Email:</strong> ${u.email}</p>
             <p><strong>Joined:</strong> ${new Date(u.createdAt).toLocaleDateString()}</p>
+            <p><strong>Products Sold:</strong> ${u.salesHistory ? u.salesHistory.length : 0}</p>
             <div class="member-actions">
                 <button class="btn btn-danger" onclick="banMember(${u.id})">Ban</button>
                 <button class="btn btn-danger" onclick="kickMember(${u.id})">Kick</button>
@@ -750,6 +912,8 @@ function approveMember(userId) {
     const user = users.find(u => u.id === userId);
     if (user) {
         user.role = 'member';
+        user.salesHistory = [];
+        user.weeklySalesData = {};
         localStorage.setItem('users', JSON.stringify(users));
         alert('Member approved!');
         loadAdminMembers();
@@ -876,7 +1040,7 @@ function uploadLogo(e) {
 
 function resetLogo() {
     localStorage.removeItem('siteLogo');
-    document.getElementById('siteLogo').src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%234f46e5%22/%3E%3Ctext x=%2250%22 y=%2260%22 font-size=%2250%22 fill=%22white%22 text-anchor=%22middle%22 font-weight=%22bold%22%3EA%3C/text%3E%3C/svg%3E';
+    document.getElementById('siteLogo').src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%234f46e5%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22 font-weight=%22bold%22%3EFS%3C/text%3E%3C/svg%3E';
     alert('Logo reset!');
 }
 
@@ -914,7 +1078,7 @@ function createSampleData() {
                 condition: 'Near Mint',
                 category: 'Pokemon',
                 description: 'Classic Charizard from Base Set 1. In Near Mint condition.',
-                images: ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 280%22%3E%3Crect fill=%22%23FF6B6B%22 width=%22200%22 height=%22280%22/%3E%3Ctext x=%22100%22 y=%22140%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2230%22 fill=%22white%22 font-weight=%22bold%22%3ECharizard%3C/text%3E%3C/svg%3E'],
+                images: ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 280%22%3E%3Crect fill=%22%23FF6B6B%22 width=%22200%22 height=%22280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22 font-weight=%22bold%22%3EPokemon%3C/text%3E%3C/svg%3E'],
                 status: 'available',
                 datePosted: new Date().toISOString(),
                 dateSold: null
@@ -928,7 +1092,7 @@ function createSampleData() {
                 condition: 'Mint',
                 category: 'Other',
                 description: 'Rare Blue Eyes White Dragon. Perfect condition.',
-                images: ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 280%22%3E%3Crect fill=%224169E1%22 width=%22200%22 height=%22280%22/%3E%3Ctext x=%22100%22 y=%22140%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2220%22 fill=%22white%22 font-weight=%22bold%22%3EBlue Eyes%3C/text%3E%3C/svg%3E'],
+                images: ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 280%22%3E%3Crect fill=%224169E1%22 width=%22200%22 height=%22280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22 font-weight=%22bold%22%3ECard%3C/text%3E%3C/svg%3E'],
                 status: 'available',
                 datePosted: new Date().toISOString(),
                 dateSold: null
@@ -943,7 +1107,9 @@ function createSampleData() {
                 password: btoa('admin123'),
                 role: 'admin',
                 createdAt: new Date().toISOString(),
-                profile: { bio: 'System Administrator', profilePicture: null, shopName: 'Admin' }
+                profile: { bio: 'System Administrator', profilePicture: null, shopName: 'Admin' },
+                salesHistory: [],
+                weeklySalesData: {}
             },
             {
                 id: 2,
@@ -953,7 +1119,9 @@ function createSampleData() {
                 password: btoa('password123'),
                 role: 'member',
                 createdAt: new Date().toISOString(),
-                profile: { bio: 'Avid trading card collector', profilePicture: null, shopName: 'John\'s Cards' }
+                profile: { bio: 'Avid trading card collector', profilePicture: null, shopName: 'John\'s Cards' },
+                salesHistory: [],
+                weeklySalesData: {}
             }
         ];
         users = sampleUsers;
